@@ -1,18 +1,17 @@
-# Use an official Python runtime as a parent image
+# Use official Python image
 FROM python:3.11-slim
 
-# Set working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy requirements.txt and install dependencies
-COPY requirements.txt .
+# Copy files
+COPY . /app
+
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy bot code into the container
-COPY bot.py .
+# Expose port for Cloud Run
+EXPOSE 8080
 
-# Set environment variable for token (optional)
-# ENV TELEGRAM_BOT_TOKEN="YOUR_TOKEN_HERE"
-
-# Run the bot
+# Run the Flask app
 CMD ["python", "bot.py"]

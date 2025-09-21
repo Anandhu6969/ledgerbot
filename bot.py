@@ -1,12 +1,20 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, Bot
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, Application
+from flask import Flask, request, jsonify
+import os
 
-# Replace this with your actual bot token
+# Bot token
 TOKEN = "8374430628:AAE1XAOU3Ze9IWZCVibxG1N3XCUkTyZ0lMY"
 
 # Ledgers: chat_id -> ledger
 ledgers = {}
 profit_percent = 0  # default profit %
+
+# Flask app
+app = Flask(__name__)
+
+# Telegram bot setup
+bot_app = ApplicationBuilder().token(TOKEN).build()
 
 # /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -39,16 +47,14 @@ async def reset_ledger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ledgers[chat_id] = {"given": [], "repaid": []}
     await update.message.reply_text("🔄 Ledger reset successfully!")
 
-# Handle messages (+amount, -amount, show ledger)
+# Handle messages
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     text = update.message.text.strip()
 
-    # Ensure ledger exists
     if chat_id not in ledgers:
         ledgers[chat_id] = {"given": [], "repaid": []}
 
-    # Record money given
     if text.startswith("+"):
         try:
             amount = float(text[1:])
@@ -56,8 +62,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"💰 Recorded: You gave {amount}")
         except ValueError:
             await update.message.reply_text("❌ Invalid format. Use +5000")
-
-    # Record money repaid
     elif text.startswith("-"):
         try:
             amount = float(text[1:])
@@ -65,8 +69,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"💸 Recorded: {amount} repaid")
         except ValueError:
             await update.message.reply_text("❌ Invalid format. Use -2000")
-
-    # Show ledger
     elif text.lower() == "show ledger":
         total_given = sum(ledgers[chat_id]["given"])
         total_repaid = sum(ledgers[chat_id]["repaid"])
@@ -83,21 +85,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Total Repaid: {total_repaid}\n"
             f"Pending Balance: {pending}\n"
         )
-
         if pending <= 0:
             msg += "\n✅ Deal Closed!"
-
         await update.message.reply_text(msg)
 
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("setprofit", set_profit))
-    app.add_handler(CommandHandler("reset", reset_ledger))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+# Add handlers
+bot_app.add_handler(CommandHandler("start", start))
+bot_app.add_handler(CommandHandler("setprofit", set_profit))
+bot_app.add_handler(CommandHandler("reset", reset_ledger))
+bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("🤖 Ledger Bot is running...")
-    app.run_polling()
+# Flask route for webhook
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot_app.bot)
+    bot_app.run_update(update)
+    return jsonify({"status": "ok"})
+
+# Root route
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot is running!"
 
 if __name__ == "__main__":
-    main()
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
