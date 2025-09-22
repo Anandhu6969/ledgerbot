@@ -5,11 +5,14 @@ from telegram.ext import (
 )
 import os
 
+# Load token from environment variable
 TOKEN = os.environ.get("BOT_TOKEN")
 
+# In-memory storage
 ledgers = {}
 profit_percent = 0
 
+# Initialize bot app
 bot_app = ApplicationBuilder().token(TOKEN).build()
 
 # /start
@@ -43,7 +46,7 @@ async def reset_ledger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ledgers[chat_id] = {"given": [], "repaid": []}
     await update.message.reply_text("🔄 Ledger reset.")
 
-# Messages
+# Handle messages
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     text = update.message.text.strip()
@@ -85,13 +88,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += "\n✅ Deal Closed!"
         await update.message.reply_text(msg)
 
-# Handlers
+# Register handlers
 bot_app.add_handler(CommandHandler("start", start))
 bot_app.add_handler(CommandHandler("setprofit", set_profit))
 bot_app.add_handler(CommandHandler("reset", reset_ledger))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+# Run app (Cloud Run expects PORT env var)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
-
+    bot_app.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=TOKEN,
+        webhook_url=f"{os.environ['CLOUD_RUN_URL']}/{TOKEN}"
+    )
