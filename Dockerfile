@@ -1,17 +1,22 @@
-# Use official Python image
+# Use a lightweight Python image
 FROM python:3.11-slim
 
-# Set working directory
+# Set work directory
 WORKDIR /app
 
-# Copy files
-COPY . /app
-
-# Install dependencies
+# Copy requirements and install
+COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port for Cloud Run
+# Copy the rest of the code
+COPY . .
+
+# Set env variables
+ENV PORT=8080
+ENV PYTHONUNBUFFERED=1
+
+# Expose port
 EXPOSE 8080
 
-# Run the Flask app
+# Start the bot
 CMD ["python", "bot.py"]
