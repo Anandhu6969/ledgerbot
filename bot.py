@@ -5,19 +5,15 @@ from telegram.ext import (
 )
 import os
 
-# Get bot token from environment
 TOKEN = os.environ.get("BOT_TOKEN")
-if not TOKEN:
-    raise RuntimeError("BOT_TOKEN environment variable is missing")
+CLOUD_RUN_URL = os.environ.get("CLOUD_RUN_URL")
 
-# Ledgers: chat_id -> ledger
 ledgers = {}
 profit_percent = 0
 
-# Create Telegram app
 bot_app = ApplicationBuilder().token(TOKEN).build()
 
-# /start command
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
         "✅ Ledger Bot Activated!\n\n"
@@ -30,7 +26,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(msg)
 
-# /setprofit command
+# /setprofit
 async def set_profit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global profit_percent
     try:
@@ -42,13 +38,13 @@ async def set_profit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("❌ Invalid number.")
 
-# /reset command
+# /reset
 async def reset_ledger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     ledgers[chat_id] = {"given": [], "repaid": []}
     await update.message.reply_text("🔄 Ledger reset.")
 
-# Handle text messages
+# Messages
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     text = update.message.text.strip()
@@ -90,7 +86,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += "\n✅ Deal Closed!"
         await update.message.reply_text(msg)
 
-# Register handlers
+# Handlers
 bot_app.add_handler(CommandHandler("start", start))
 bot_app.add_handler(CommandHandler("setprofit", set_profit))
 bot_app.add_handler(CommandHandler("reset", reset_ledger))
@@ -98,13 +94,9 @@ bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_messa
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    cloud_run_url = os.environ.get("CLOUD_RUN_URL")
-    if not cloud_run_url:
-        raise RuntimeError("CLOUD_RUN_URL environment variable is missing")
-
     bot_app.run_webhook(
         listen="0.0.0.0",
         port=port,
         url_path=TOKEN,
-        webhook_url=f"{cloud_run_url}/{TOKEN}",
+        webhook_url=f"{CLOUD_RUN_URL}/{TOKEN}"
     )
