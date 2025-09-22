@@ -93,9 +93,5 @@ bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_messa
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    bot_app.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path=TOKEN,
-        webhook_url=f"https://{os.environ['CLOUD_RUN_URL']}/{TOKEN}"
-    )
+    app.run(host="0.0.0.0", port=port)
+
